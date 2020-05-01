@@ -1,0 +1,153 @@
+
+
+<!DOCTYPE html>
+<html>
+<title>Hobson Jobson</title>
+<body>
+<center>
+<h2><a href="https://en.wikipedia.org/wiki/Hobson-Jobson">Hobson-Jobson</a>:</h2>
+</center>
+In 1886 two Brits published a lexicon of English words of predominantly South Asian Origins. Which is now in the Public Domain.<br> 
+I have used the data from the Hobson-Jobson to build a look-up engine, which pulls up definitions of words, and a recommendation engine which tries to pull up related concepts that might interest the reader.<br>
+
+<center>
+<input id='token' placeholder='Search'><br>
+<button onclick="hobson()">Look Up</button><br>
+<input id='tfidf' placeholder='This is Slow'><br>
+<button onclick="jobson()">Recommend!</button>
+</center>
+<p id="demo"></p>
+
+<script>
+function hobson() {
+    var elem=document.getElementById('token').value.toLowerCase();
+    var url='./resources/hobsonJobson.json';
+    function httpGet(theUrl)
+    {
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
+        xmlHttp.send( null );
+        return xmlHttp.responseText;
+    }
+
+    var jobsonText= httpGet(url);
+    var jobsonJSON=JSON.parse(jobsonText);
+    if (jobsonJSON[elem]){
+        document.getElementById("demo").innerHTML = "<b>"+elem.toUpperCase()+'</b> '+jobsonJSON[elem].replace(/\n/g, "<br><br>");
+    }
+    else{
+    str='<b>Word Not Found:<br>Try One of These:</b><p>'
+        for (elem in jobsonJSON){
+            str=str+"<br>"+elem
+        }
+        document.getElementById("demo").innerHTML=str.toUpperCase();
+    }
+}
+</script>
+<script>
+function jobson() {
+    var elem=document.getElementById('tfidf').value.toLowerCase();
+    var url='./resources/hobsonJobson.json';
+    function httpGet(theUrl)
+    {
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
+        xmlHttp.send( null );
+        return xmlHttp.responseText;
+    }
+
+    var jobsonText= httpGet(url);
+    var jobsonJSON=JSON.parse(jobsonText);
+    if (jobsonJSON[elem]){
+        var strTemp="<b>"+elem.toUpperCase()+'</b> '+jobsonJSON[elem].split('\n')[0];
+    
+        
+        
+        //Jobson Retrieval
+        
+        var url='./resources/tfidf.json';
+        function httpGet(theUrl)
+        {
+            var xmlHttp = new XMLHttpRequest();
+            xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
+            xmlHttp.send( null );
+            return xmlHttp.responseText;
+        }
+
+        var hobsonText= httpGet(url);
+        var hobsonTFIDF=JSON.parse(hobsonText);
+        
+        var scores={};
+        if (hobsonTFIDF[elem]){
+            for (term in hobsonTFIDF){
+                if (term != elem){
+                    //term='abada';
+                    candidateKeys = Object.keys(hobsonTFIDF[term]);
+                    origKeys=Object.keys(hobsonTFIDF[elem]);
+                    candSet = new Set(candidateKeys);
+                    origSet = new Set(origKeys);
+                    intKeys = new Set([...candSet].filter(x => origSet.has(x)));
+                    keyList=Array.from(intKeys);
+                    //console.log(intKeys)
+                    num=0
+                    var elemA=0;
+                    var termB=0;
+                    
+                    for (c in keyList){
+                        var word=keyList[c];
+                        
+                        num=num+hobsonTFIDF[term][word]*hobsonTFIDF[elem][word];
+                        //console.log(word)
+                    }
+                    
+                    for (c in Array.from(candSet)){
+                        var word=Array.from(candSet)[c];
+                    //term=word;
+                        termB=termB+(hobsonTFIDF[term][word]*hobsonTFIDF[term][word]);
+                        
+                    }
+                    
+                    for (c in Array.from(origSet)){
+                        var word=Array.from(origSet)[c];
+                    //term=word;
+                        elemA=elemA+(hobsonTFIDF[elem][word]*hobsonTFIDF[elem][word]);
+                        
+                    }
+                    
+                    var normA= Math.sqrt(elemA);
+                    
+                    var normB= Math.sqrt(termB);
+                    denom=normA*normB;
+                    scores[term]=num/denom;
+                    
+                   
+                }
+                
+            }
+            candidates=[]
+            for (x = 0; x < 5; x++){
+                retObject=Object.keys(scores).reduce(function(a, b){ return scores[a] > scores[b] ? a : b });
+                console.log(retObject)
+                candidates.push(retObject)
+                scores[retObject]=0;
+            }
+            
+            for (c in candidates){
+                word=candidates[c];
+                strTemp=strTemp+"<p><b>"+word.toUpperCase()+'</b> '+jobsonJSON[word].split('\n')[0]
+            }
+            document.getElementById("demo").innerHTML = strTemp
+        }
+    }
+    else{
+    str='<b>Word Not Found:<br>Try One of These:</b><p>'
+        for (elem in jobsonJSON){
+            str=str+"<br>"+elem
+        }
+        document.getElementById("demo").innerHTML=str.toUpperCase();
+    }
+}
+</script>
+
+</body>
+</html>
